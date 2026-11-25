@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import mongoose from 'mongoose';
 import { env } from '../config/env.ts';
@@ -29,8 +30,8 @@ import type {
 } from '../../src/types/inventory.ts';
 import { calculateSaleTotals, roundCurrency } from '../../src/utils/inventoryMath.ts';
 
-const DATA_DIR = path.resolve(process.cwd(), 'data');
-const DATA_FILE = path.join(DATA_DIR, 'stockmaster-db.json');
+const PRIMARY_DATA_DIR = path.resolve(process.cwd(), 'data');
+const TMP_DATA_DIR = path.join(os.tmpdir(), 'stockmaster-data');
 
 export class AppError extends Error {
   status: number;
@@ -67,6 +68,12 @@ class InventoryRepository {
   private useMongo = false;
   private initialized = false;
   private writeQueue: Promise<unknown> = Promise.resolve();
+  private activeDataDir = PRIMARY_DATA_DIR;
+  private memoryFallback: DatabaseState | null = null;
+
+  private get dataFile(): string {
+    return path.join(this.activeDataDir, 'stockmaster-db.json');
+  }
 
   private runSerialized<T>(fn: () => Promise<T>): Promise<T> {
     const next = this.writeQueue.then(fn, fn);
@@ -97,32 +104,69 @@ class InventoryRepository {
   }
 
   private async ensureJsonStore(): Promise<void> {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    try {
-      await fs.access(DATA_FILE);
-      const raw = await fs.readFile(DATA_FILE, 'utf8');
-      const parsed = JSON.parse(raw) as DatabaseState;
-      if (!Array.isArray(parsed.users) || parsed.users.length === 0) {
-        parsed.users = [createDemoAdminUser()];
-        await this.writeJsonState(parsed);
+    if (this.memoryFallback) return;
+
+    for (const candidateDir of [PRIMARY_DATA_DIR, TMP_DATA_DIR]) {
+      this.activeDataDir = candidateDir;
+      try {
+        await fs.mkdir(this.activeDataDir, { recursive: true });
+        try {
+          await fs.access(this.dataFile);
+          const raw = await fs.readFile(this.dataFile, 'utf8');
+          const parsed = JSON.parse(raw) as DatabaseState;
+          if (!Array.isArray(parsed.users) || parsed.users.length === 0) {
+            parsed.users = [createDemoAdminUser()];
+            await this.writeJsonState(parsed);
+          }
+          return;
+        } catch {
+          const initial = createInitialSeedData();
+          await this.writeJsonState(initial);
+          return;
+        }
+      } catch (err) {
+        console.warn(`Storage directory ${candidateDir} unavailable:`, (err as Error).message);
       }
-    } catch {
-      const initial = createInitialSeedData();
-      await this.writeJsonState(initial);
     }
+
+    this.memoryFallback = createInitialSeedData();
   }
 
   private async readJsonState(): Promise<DatabaseState> {
     await this.ensureJsonStore();
-    const raw = await fs.readFile(DATA_FILE, 'utf8');
+    if (this.memoryFallback) {
+      return this.memoryFallback;
+    }
+    const raw = await fs.readFile(this.dataFile, 'utf8');
     return JSON.parse(raw) as DatabaseState;
   }
 
   private async writeJsonState(state: DatabaseState): Promise<void> {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    const tempFile = `${DATA_FILE}.${crypto.randomUUID()}.tmp`;
-    await fs.writeFile(tempFile, JSON.stringify(state, null, 2), 'utf8');
-    await fs.rename(tempFile, DATA_FILE);
+    if (this.memoryFallback) {
+      this.memoryFallback = state;
+      return;
+    }
+    try {
+      await fs.mkdir(this.activeDataDir, { recursive: true });
+      const tempFile = `${this.dataFile}.${crypto.randomUUID()}.tmp`;
+      await fs.writeFile(tempFile, JSON.stringify(state, null, 2), 'utf8');
+      await fs.rename(tempFile, this.dataFile);
+    } catch (err) {
+      if (this.activeDataDir !== TMP_DATA_DIR) {
+        try {
+          this.activeDataDir = TMP_DATA_DIR;
+          await fs.mkdir(this.activeDataDir, { recursive: true });
+          const tempFile = `${this.dataFile}.${crypto.randomUUID()}.tmp`;
+          await fs.writeFile(tempFile, JSON.stringify(state, null, 2), 'utf8');
+          await fs.rename(tempFile, this.dataFile);
+          return;
+        } catch {
+          // Fall through to memory fallback
+        }
+      }
+      console.warn('Disk storage read-only; keeping state in memory:', (err as Error).message);
+      this.memoryFallback = state;
+    }
   }
 
   private async ensureMongoSeed(): Promise<void> {

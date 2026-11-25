@@ -1,6 +1,6 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import { env } from './server/config/env.ts';
 import { repository } from './server/db/repository.ts';
 import { rejectNoSqlOperators } from './server/middleware/validate.ts';
@@ -30,7 +30,13 @@ async function startServer(): Promise<void> {
 
   app.use('/api', apiRouter);
 
-  if (env.nodeEnv !== 'production') {
+  const isProduction =
+    env.nodeEnv === 'production' ||
+    process.env.npm_lifecycle_event === 'start' ||
+    Boolean(process.env.K_SERVICE);
+
+  if (!isProduction) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -38,10 +44,17 @@ async function startServer(): Promise<void> {
     app.use(vite.middlewares);
   } else {
     const distDir = path.resolve(process.cwd(), 'dist');
-    app.use(express.static(distDir));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(distDir, 'index.html'));
-    });
+    if (fs.existsSync(distDir)) {
+      app.use(express.static(distDir));
+      app.get('*', (_req, res) => {
+        res.sendFile(path.join(distDir, 'index.html'));
+      });
+    } else {
+      console.warn('Production dist directory missing; run npm run build first.');
+      app.get('*', (_req, res) => {
+        res.status(503).send('Application build assets missing. Run npm run build.');
+      });
+    }
   }
 
   app.listen(env.port, '0.0.0.0', () => {
