@@ -1,0 +1,6 @@
+{
+  "name": "StockMaster – Inventory & Stock Management System",
+  "description": "Commercial-grade inventory, stock movement, supplier, sales, and analytics platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
