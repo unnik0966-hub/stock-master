@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Package } from 'lucide-react';
 
 interface ProductImageProps {
@@ -9,6 +9,10 @@ interface ProductImageProps {
 
 export function ProductImage({ src, alt, className = 'w-10 h-10 rounded-md' }: ProductImageProps) {
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
 
   if (!src || failed) {
     return (

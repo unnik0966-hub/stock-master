@@ -124,6 +124,10 @@ function AppWorkspace() {
   }, [token, logout, showToast]);
 
   useEffect(() => {
+    setAvatarFailed(false);
+  }, [user?.avatarUrl]);
+
+  useEffect(() => {
     if (token) {
       void refreshAll();
     } else {
@@ -205,7 +209,7 @@ function AppWorkspace() {
               <Box className="w-4 h-4" />
             </div>
             <div className="leading-none">
-              <span className="font-heading text-sm font-bold tracking-tight text-slate-900 dark:text-white block">
+              <span className="font-display text-sm font-bold tracking-tight text-slate-900 dark:text-white block">
                 StockMaster
               </span>
               <span className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -307,7 +311,7 @@ function AppWorkspace() {
                 StockMaster
               </span>
               <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">/</span>
-              <h1 className="font-heading font-semibold text-slate-900 dark:text-white truncate">
+              <h1 className="font-display font-semibold text-slate-900 dark:text-white truncate">
                 {activeNavMeta.label}
               </h1>
             </div>

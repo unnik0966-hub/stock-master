@@ -146,8 +146,8 @@ export function DashboardView({
               View Sales
             </button>
           </div>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <AreaChart data={monthlyRevenue} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="revGradient" x1="0" y1="0" x2="0" y2="1">
@@ -219,8 +219,8 @@ export function DashboardView({
               Categories
             </button>
           </div>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart data={stockByCategory} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" strokeOpacity={0.2} />
                 <XAxis

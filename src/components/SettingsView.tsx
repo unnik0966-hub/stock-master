@@ -21,12 +21,20 @@ export function SettingsView() {
   const [team, setTeam] = useState<UserDTO[]>([]);
   const [teamLoading, setTeamLoading] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
   const [inviteForm, setInviteForm] = useState({
     name: '',
     email: '',
     password: '',
     role: 'staff' as UserRole,
   });
+
+  useEffect(() => {
+    if (user) {
+      setProfileName(user.name);
+      setProfileEmail(user.email);
+    }
+  }, [user]);
 
   const loadTeam = useCallback(async () => {
     if (user?.role !== 'admin' || !token) return;
@@ -52,7 +60,7 @@ export function SettingsView() {
       const res = await apiRequest<{ user: UserDTO; token: string }>('/auth/profile', {
         method: 'PATCH',
         token,
-        body: { name: profileName, email: profileEmail },
+        body: { name: profileName.trim(), email: profileEmail.trim() },
       });
       updateSessionUser(res.user, res.token);
       showToast('Profile details updated.', 'success');
@@ -85,18 +93,25 @@ export function SettingsView() {
 
   async function handleCreateUser(e: React.FormEvent) {
     e.preventDefault();
+    setCreatingUser(true);
     try {
       await apiRequest('/users', {
         method: 'POST',
         token,
-        body: inviteForm,
+        body: {
+          ...inviteForm,
+          name: inviteForm.name.trim(),
+          email: inviteForm.email.trim(),
+        },
       });
-      showToast(`Created ${inviteForm.role} account for ${inviteForm.name}.`, 'success');
+      showToast(`Created ${inviteForm.role} account for ${inviteForm.name.trim()}.`, 'success');
       setInviteOpen(false);
       setInviteForm({ name: '', email: '', password: '', role: 'staff' });
       await loadTeam();
     } catch (err) {
       showToast((err as Error).message || 'Failed to create team member.', 'error');
+    } finally {
+      setCreatingUser(false);
     }
   }
 
@@ -444,9 +459,10 @@ export function SettingsView() {
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+              disabled={creatingUser}
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white cursor-pointer"
             >
-              Create Account
+              {creatingUser ? 'Creating...' : 'Create Account'}
             </button>
           </div>
         </form>

@@ -245,8 +245,8 @@ export function ReportsView({ products, categories, sales }: ReportsViewProps) {
                 ))}
               </div>
             </div>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-64 w-full min-w-0">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={salesGrouped}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" strokeOpacity={0.2} />
                   <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#64748B' }} axisLine={false} tickLine={false} />
@@ -284,20 +284,28 @@ export function ReportsView({ products, categories, sales }: ReportsViewProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
-                {salesGrouped.map((row) => (
-                  <tr key={row.label}>
-                    <td className="py-3 px-6 font-medium text-slate-900 dark:text-white">
-                      {row.label}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono tabular-nums">{row.orders}</td>
-                    <td className="py-3 px-4 text-right font-mono tabular-nums">
-                      {formatCurrency(row.revenue)}
-                    </td>
-                    <td className="py-3 px-6 text-right font-mono tabular-nums font-semibold text-emerald-700 dark:text-emerald-400">
-                      {formatCurrency(row.profit)}
+                {salesGrouped.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 px-6 text-center text-sm text-slate-500">
+                      No sales data recorded yet.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  salesGrouped.map((row) => (
+                    <tr key={row.label}>
+                      <td className="py-3 px-6 font-medium text-slate-900 dark:text-white">
+                        {row.label}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono tabular-nums">{row.orders}</td>
+                      <td className="py-3 px-4 text-right font-mono tabular-nums">
+                        {formatCurrency(row.revenue)}
+                      </td>
+                      <td className="py-3 px-6 text-right font-mono tabular-nums font-semibold text-emerald-700 dark:text-emerald-400">
+                        {formatCurrency(row.profit)}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

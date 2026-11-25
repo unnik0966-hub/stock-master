@@ -73,63 +73,96 @@ const adminUpdateUserSchema = z.object({
 });
 
 const categorySchema = z.object({
-  name: z.string().min(2).max(80),
-  code: z.string().min(2).max(8),
-  description: z.string().max(400).default(''),
+  name: z.string().trim().min(2).max(80),
+  code: z.string().trim().min(2).max(8),
+  description: z.string().trim().max(400).default(''),
+});
+
+const categoryUpdateSchema = z.object({
+  name: z.string().trim().min(2).max(80).optional(),
+  code: z.string().trim().min(2).max(8).optional(),
+  description: z.string().trim().max(400).optional(),
 });
 
 const supplierSchema = z.object({
-  name: z.string().min(2).max(100),
-  contactPerson: z.string().min(2).max(80),
-  email: z.string().email().max(120),
-  phone: z.string().min(5).max(40),
-  address: z.string().min(3).max(200),
+  name: z.string().trim().min(2).max(100),
+  contactPerson: z.string().trim().min(2).max(80),
+  email: z.string().trim().email().max(120),
+  phone: z.string().trim().min(5).max(40),
+  address: z.string().trim().min(3).max(200),
   leadTimeDays: z.coerce.number().int().min(1).max(120).default(5),
 });
 
+const supplierUpdateSchema = z.object({
+  name: z.string().trim().min(2).max(100).optional(),
+  contactPerson: z.string().trim().min(2).max(80).optional(),
+  email: z.string().trim().email().max(120).optional(),
+  phone: z.string().trim().min(5).max(40).optional(),
+  address: z.string().trim().min(3).max(200).optional(),
+  leadTimeDays: z.coerce.number().int().min(1).max(120).optional(),
+});
+
 const productCreateSchema = z.object({
-  name: z.string().min(2).max(120),
-  sku: z.string().min(3).max(40),
-  categoryId: z.string().min(2).max(60),
-  supplierId: z.string().min(2).max(60),
+  name: z.string().trim().min(2).max(120),
+  sku: z.string().trim().min(3).max(40),
+  categoryId: z.string().trim().min(2).max(60),
+  supplierId: z.string().trim().min(2).max(60),
   costPrice: z.coerce.number().min(0).max(1000000),
   sellingPrice: z.coerce.number().min(0).max(1000000),
   quantity: z.coerce.number().int().min(0).max(1000000),
   reorderLevel: z.coerce.number().int().min(0).max(100000),
-  unit: z.string().min(1).max(20).default('unit'),
-  location: z.string().min(1).max(80).default('Warehouse A'),
+  unit: z.string().trim().min(1).max(20).default('unit'),
+  location: z.string().trim().min(1).max(80).default('Warehouse A'),
   imageUrl: z
     .string()
+    .trim()
     .max(3_000_000)
     .optional()
     .default('')
     .refine(isSafeImageUrl, 'Invalid image URL or unsupported format.'),
-  description: z.string().max(600).optional().default(''),
+  description: z.string().trim().max(600).optional().default(''),
 });
 
-const productUpdateSchema = productCreateSchema.omit({ quantity: true }).partial();
+const productUpdateSchema = z.object({
+  name: z.string().trim().min(2).max(120).optional(),
+  sku: z.string().trim().min(3).max(40).optional(),
+  categoryId: z.string().trim().min(2).max(60).optional(),
+  supplierId: z.string().trim().min(2).max(60).optional(),
+  costPrice: z.coerce.number().min(0).max(1000000).optional(),
+  sellingPrice: z.coerce.number().min(0).max(1000000).optional(),
+  reorderLevel: z.coerce.number().int().min(0).max(100000).optional(),
+  unit: z.string().trim().min(1).max(20).optional(),
+  location: z.string().trim().min(1).max(80).optional(),
+  imageUrl: z
+    .string()
+    .trim()
+    .max(3_000_000)
+    .optional()
+    .refine((v) => v === undefined || isSafeImageUrl(v), 'Invalid image URL or unsupported format.'),
+  description: z.string().trim().max(600).optional(),
+});
 
 const stockMovementSchema = z.object({
-  productId: z.string().min(2).max(60),
+  productId: z.string().trim().min(2).max(60),
   type: z.enum(['IN', 'OUT', 'ADJUSTMENT']),
   quantity: z.coerce.number().int().min(1).max(1000000),
-  supplierId: z.string().max(60).optional().default(''),
-  reference: z.string().min(2).max(80),
-  notes: z.string().max(400).optional().default(''),
+  supplierId: z.string().trim().max(60).optional().default(''),
+  reference: z.string().trim().min(2).max(80),
+  notes: z.string().trim().max(400).optional().default(''),
 });
 
 const saleCreateSchema = z.object({
-  customerName: z.string().min(2).max(120),
-  customerEmail: z.string().email().max(120).or(z.literal('')).default(''),
-  customerPhone: z.string().max(40).default(''),
+  customerName: z.string().trim().min(2).max(120),
+  customerEmail: z.string().trim().email().max(120).or(z.literal('')).default(''),
+  customerPhone: z.string().trim().max(40).default(''),
   paymentMethod: z.enum(['Card', 'Bank Transfer', 'Cash', 'Invoice Net-30']),
   status: z.enum(['Paid', 'Pending']).default('Paid'),
   taxRate: z.coerce.number().min(0).max(0.5).default(0.08),
-  notes: z.string().max(400).optional().default(''),
+  notes: z.string().trim().max(400).optional().default(''),
   items: z
     .array(
       z.object({
-        productId: z.string().min(2).max(60),
+        productId: z.string().trim().min(2).max(60),
         quantity: z.coerce.number().int().min(1).max(100000),
       })
     )
@@ -164,13 +197,13 @@ router.get('/dashboard', requireAuth, getDashboardSummary);
 // Categories
 router.get('/categories', requireAuth, listCategories);
 router.post('/categories', requireAuth, validateBody(categorySchema), createCategory);
-router.patch('/categories/:id', requireAuth, validateBody(categorySchema.partial()), updateCategory);
+router.patch('/categories/:id', requireAuth, validateBody(categoryUpdateSchema), updateCategory);
 router.delete('/categories/:id', requireAuth, requireRole('admin'), deleteCategory);
 
 // Suppliers
 router.get('/suppliers', requireAuth, listSuppliers);
 router.post('/suppliers', requireAuth, validateBody(supplierSchema), createSupplier);
-router.patch('/suppliers/:id', requireAuth, validateBody(supplierSchema.partial()), updateSupplier);
+router.patch('/suppliers/:id', requireAuth, validateBody(supplierUpdateSchema), updateSupplier);
 router.delete('/suppliers/:id', requireAuth, requireRole('admin'), deleteSupplier);
 
 // Products
@@ -187,5 +220,9 @@ router.post('/stock', requireAuth, validateBody(stockMovementSchema), createStoc
 router.get('/sales', requireAuth, listSales);
 router.post('/sales', requireAuth, validateBody(saleCreateSchema), createSale);
 router.patch('/sales/:id/status', requireAuth, validateBody(saleStatusSchema), updateSaleStatus);
+
+router.use((_req, res) => {
+  res.status(404).json({ error: 'API endpoint not found.' });
+});
 
 export default router;

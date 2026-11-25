@@ -52,11 +52,20 @@ export function SalesView({ products, sales, onRefresh }: SalesViewProps) {
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
   const draftSummary = useMemo(() => {
+    const requestedTotals = new Map<string, number>();
+    for (const line of lines) {
+      requestedTotals.set(
+        line.productId,
+        (requestedTotals.get(line.productId) || 0) + line.quantity
+      );
+    }
+
     const detailed = lines.map((line) => {
       const prod = productMap.get(line.productId);
       const unitPrice = prod?.sellingPrice || 0;
       const available = prod?.quantity || 0;
-      const insufficient = line.quantity > available;
+      const totalRequestedForSku = requestedTotals.get(line.productId) || line.quantity;
+      const insufficient = totalRequestedForSku > available;
       return {
         ...line,
         product: prod,
@@ -118,13 +127,13 @@ export function SalesView({ products, sales, onRefresh }: SalesViewProps) {
         method: 'POST',
         token,
         body: {
-          customerName,
-          customerEmail,
-          customerPhone,
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim(),
+          customerPhone: customerPhone.trim(),
           paymentMethod,
           status,
           taxRate: Number(taxRatePct || 0) / 100,
-          notes,
+          notes: notes.trim(),
           items: lines,
         },
       });

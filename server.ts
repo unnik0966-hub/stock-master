@@ -12,6 +12,20 @@ async function startServer(): Promise<void> {
   const app = express();
   app.set('trust proxy', 1);
   app.use(express.json({ limit: '5mb' }));
+  app.use(
+    (
+      err: unknown,
+      _req: express.Request,
+      res: express.Response,
+      next: express.NextFunction
+    ) => {
+      if (err instanceof SyntaxError && 'body' in err) {
+        res.status(400).json({ error: 'Invalid JSON request payload.' });
+        return;
+      }
+      next(err);
+    }
+  );
   app.use(rejectNoSqlOperators);
 
   app.use('/api', apiRouter);
