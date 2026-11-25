@@ -1,34 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import express from 'express';
+import { createApp, ensureDbInitialized } from './server/app.ts';
 import { env } from './server/config/env.ts';
-import { repository } from './server/db/repository.ts';
-import { rejectNoSqlOperators } from './server/middleware/validate.ts';
-import apiRouter from './server/routes/api.ts';
 
 async function startServer(): Promise<void> {
-  await repository.init();
+  await ensureDbInitialized();
 
-  const app = express();
-  app.set('trust proxy', 1);
-  app.use(express.json({ limit: '5mb' }));
-  app.use(
-    (
-      err: unknown,
-      _req: express.Request,
-      res: express.Response,
-      next: express.NextFunction
-    ) => {
-      if (err instanceof SyntaxError && 'body' in err) {
-        res.status(400).json({ error: 'Invalid JSON request payload.' });
-        return;
-      }
-      next(err);
-    }
-  );
-  app.use(rejectNoSqlOperators);
-
-  app.use('/api', apiRouter);
+  const app = createApp();
 
   const isProduction =
     env.nodeEnv === 'production' ||
