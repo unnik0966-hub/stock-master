@@ -5,14 +5,18 @@ import { createApp, ensureDbInitialized } from './server/app.ts';
 import { env } from './server/config/env.ts';
 
 async function startServer(): Promise<void> {
-  await ensureDbInitialized();
+  void ensureDbInitialized().catch((err) => {
+    console.error('Initial database warm-up error:', err);
+  });
 
   const app = createApp();
 
   const isProduction =
     env.nodeEnv === 'production' ||
     process.env.npm_lifecycle_event === 'start' ||
-    Boolean(process.env.K_SERVICE);
+    (process.env.NODE_ENV !== 'development' &&
+      process.env.npm_lifecycle_event !== 'dev' &&
+      Boolean(process.env.K_SERVICE));
 
   if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
