@@ -3,7 +3,18 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const fallbackJwtSecret = crypto.randomBytes(32).toString('hex');
+const deploymentScope =
+  process.env.VERCEL_PROJECT_ID ||
+  process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+  process.env.VERCEL_BRANCH_URL ||
+  process.env.VERCEL_URL ||
+  process.env.K_SERVICE ||
+  process.cwd();
+
+const fallbackJwtSecret = crypto
+  .createHmac('sha256', deploymentScope)
+  .update('stockmaster-fallback-jwt-signing-key')
+  .digest('hex');
 
 function resolveMongoUri(raw?: string): string {
   const trimmed = raw?.trim() || '';

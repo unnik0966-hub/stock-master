@@ -68,6 +68,7 @@ class InventoryRepository {
   private useMongo = false;
   private initialized = false;
   private writeQueue: Promise<unknown> = Promise.resolve();
+  private initPromise: Promise<void> | null = null;
   private activeDataDir = PRIMARY_DATA_DIR;
   private memoryFallback: DatabaseState | null = null;
 
@@ -86,21 +87,31 @@ class InventoryRepository {
 
   async init(): Promise<void> {
     if (this.initialized) return;
+    if (!this.initPromise) {
+      this.initPromise = (async () => {
+        if (env.mongoUri) {
+          try {
+            await mongoose.connect(env.mongoUri, { serverSelectionTimeoutMS: 4000 });
+            this.useMongo = true;
+            await this.ensureMongoSeed();
+            this.initialized = true;
+            return;
+          } catch (err) {
+            console.warn(
+              'MongoDB unavailable, falling back to persistent atomic JSON store:',
+              (err as Error).message
+            );
+          }
+        }
 
-    if (env.mongoUri) {
-      try {
-        await mongoose.connect(env.mongoUri, { serverSelectionTimeoutMS: 4000 });
-        this.useMongo = true;
-        await this.ensureMongoSeed();
+        await this.ensureJsonStore();
         this.initialized = true;
-        return;
-      } catch (err) {
-        console.warn('MongoDB unavailable, falling back to persistent atomic JSON store:', (err as Error).message);
-      }
+      })().catch((err) => {
+        this.initPromise = null;
+        throw err;
+      });
     }
-
-    await this.ensureJsonStore();
-    this.initialized = true;
+    return this.initPromise;
   }
 
   private async ensureJsonStore(): Promise<void> {

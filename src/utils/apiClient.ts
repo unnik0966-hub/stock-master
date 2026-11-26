@@ -34,7 +34,13 @@ export async function apiRequest<T>(
     try {
       parsed = JSON.parse(text) as Record<string, unknown>;
     } catch {
-      parsed = { error: text };
+      const trimmed = text.trim();
+      const looksLikeHtml = trimmed.startsWith('<!') || trimmed.startsWith('<html');
+      parsed = {
+        error: looksLikeHtml
+          ? `Server returned ${response.status} (${response.statusText || 'unexpected response'}).`
+          : trimmed.slice(0, 200),
+      };
     }
   }
 

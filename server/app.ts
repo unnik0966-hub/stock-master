@@ -18,8 +18,34 @@ export function ensureDbInitialized(): Promise<void> {
 export function createApp(): express.Express {
   const app = express();
   app.set('trust proxy', 1);
-  app.use((req, _res, next) => {
-    if (req.body !== undefined && typeof req.body === 'object') {
+  app.use((req, res, next) => {
+    if (Buffer.isBuffer(req.body)) {
+      const raw = req.body.toString('utf8').trim();
+      if (!raw) {
+        req.body = {};
+      } else {
+        try {
+          req.body = JSON.parse(raw);
+        } catch {
+          res.status(400).json({ error: 'Invalid JSON request payload.' });
+          return;
+        }
+      }
+      (req as unknown as { _body?: boolean })._body = true;
+    } else if (typeof req.body === 'string') {
+      const raw = req.body.trim();
+      if (!raw) {
+        req.body = {};
+      } else {
+        try {
+          req.body = JSON.parse(raw);
+        } catch {
+          res.status(400).json({ error: 'Invalid JSON request payload.' });
+          return;
+        }
+      }
+      (req as unknown as { _body?: boolean })._body = true;
+    } else if (req.body !== undefined && req.body !== null && typeof req.body === 'object') {
       (req as unknown as { _body?: boolean })._body = true;
     }
     next();
